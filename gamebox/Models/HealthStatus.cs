@@ -1,6 +1,6 @@
-﻿namespace gamebox_api.Models
+﻿namespace gamebox.Models
 {
-    public class Hello
+    public class HealthStatus
     {
         public string Status { get; set; }
     }

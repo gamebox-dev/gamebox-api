@@ -1,4 +1,4 @@
-﻿using gamebox_api.Models;
+﻿using gamebox.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,9 +11,9 @@ namespace gamebox_api.Controllers
     public class HelloController : ControllerBase
     {
         [HttpGet(Name = "Hello")]
-        public Hello Get()
+        public HealthStatus Get()
         {
-            return new Hello() { Status = "ok" };
+            return new HealthStatus() { Status = "ok" };
         }
     }
 }
