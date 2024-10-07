@@ -1,4 +1,4 @@
-﻿namespace gamebox.Models
+﻿namespace GameBox.Models
 {
     public class HealthStatus
     {

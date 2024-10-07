@@ -1,9 +1,9 @@
-﻿using gamebox.Models;
+﻿using GameBox.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 
-namespace gamebox_api.Controllers
+namespace GameBox.Controllers
 {
     [Produces("application/json")]
     [Route("[controller]")]
