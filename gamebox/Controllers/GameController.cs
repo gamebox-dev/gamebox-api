@@ -10,16 +10,16 @@ namespace GameBox.Controllers
     /// Game information service
     /// </summary>
     [Produces("application/json")]
-    [Route("[controller]")]
+    [Route("games/search")]
     public class GameController : Controller
     {
         /// <summary>
         /// Retrieves a game from the IGDB by name
         /// </summary>
-        /// <param name="gameTitle">The title of the game to search for</param>
+        /// <param name="q">The title of the game to search for</param>
         /// <returns></returns>
-        [HttpGet(Name = "games/search")]
-        public async Task<GameBox.Models.Game?> Get(string gameTitle)
+        [HttpGet(Name = "GetGame")]
+        public async Task<GameBox.Models.Game?> Get(string q)
         {
             var client = new HttpClient();
             var tokenRequest = new HttpRequestMessage
@@ -52,7 +52,7 @@ namespace GameBox.Controllers
             {
                 Method = HttpMethod.Post,
                 RequestUri = new Uri("https://api.igdb.com/v4/games"),
-                Content = new StringContent($"fields name,external_games,summary,cover;\r\nwhere name = \"{gameTitle}\";")
+                Content = new StringContent($"fields name,external_games,summary,cover;\r\nwhere name = \"{q}\";")
                 {
                     Headers =
                     {

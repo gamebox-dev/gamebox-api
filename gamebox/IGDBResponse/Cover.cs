@@ -2,7 +2,7 @@
 {
     internal class Cover
     {
-        public int? id;
-        public string? url;
+        public int? id {  get; set; }
+        public string? url {  get; set; }
     }
 }
