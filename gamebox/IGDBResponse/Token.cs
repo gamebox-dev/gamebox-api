@@ -1,9 +1,9 @@
 ﻿namespace GameBox.IGDBResponse
 {
-    public class Token
+    internal class Token
     {
-        public string access_token;
-        public int expires_in;
-        public string token_type;
+        public string? access_token {  get; set; }
+        public int? expires_in { get; set; }
+        public string? token_type {  get; set; }
     }
 }

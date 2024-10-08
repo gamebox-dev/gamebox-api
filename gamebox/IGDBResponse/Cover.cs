@@ -1,8 +1,8 @@
 ﻿namespace GameBox.IGDBResponse
 {
-    public class Cover
+    internal class Cover
     {
-        public int id;
-        public string url;
+        public int? id;
+        public string? url;
     }
 }

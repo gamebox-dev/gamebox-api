@@ -2,6 +2,7 @@
 using GameBox.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Headers;
+using System.Net.Mime;
 
 namespace GameBox.Controllers
 {
@@ -20,67 +21,87 @@ namespace GameBox.Controllers
         [HttpGet(Name = "games/search")]
         public async Task<GameBox.Models.Game?> Get(string gameTitle)
         {
-            HttpResponseMessage? tokenResponse = null;
-            using (HttpClient client = new HttpClient())
+            var client = new HttpClient();
+            var tokenRequest = new HttpRequestMessage
             {
-                HttpContent content = new StringContent("{" + Environment.NewLine + 
+                Method = HttpMethod.Post,
+                RequestUri = new Uri("https://id.twitch.tv/oauth2/token"),
+                Content = new StringContent("{" + Environment.NewLine +
                     "\"client_id\": \"gkerplqbddwqjd5s253q471ztu2pth\"," + Environment.NewLine +
-                    "\"client_secret\": \"lsbgel1hnihcwnwh3a1y6rw9zmqvup\"," + Environment.NewLine + 
-                    "\"grant_type\": \"client_credentials\"" + Environment.NewLine +
-                "}");
-                content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
+                    "\"client_secret\": \"lsbgel1hnihcwnwh3a1y6rw9zmqvup\"," + Environment.NewLine +
+                    "\"grant_type\": \"client_credentials\"" + Environment.NewLine + "}")
+                {
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue("application/json")
+                    }
+                }
+            };
 
-                tokenResponse = await client.PostAsync("https://id.twitch.tv/oauth2/token", content);
-            }
-
-            if(tokenResponse == null)
-                return null;
-
-            string tokenRespString = await tokenResponse.Content.ReadAsStringAsync();
-            Token? tokenResp = Newtonsoft.Json.JsonConvert.DeserializeObject<Token>(tokenRespString);
-
-            if (tokenResp == null || string.IsNullOrWhiteSpace(tokenResp.access_token))
-                return null;
-
-            HttpResponseMessage? gameResponse = null;
-            using (HttpClient client = new HttpClient())
+            Token? tokenResp = null;
+            using (var tokenResponse = await client.SendAsync(tokenRequest))
             {
-                HttpContent content = new StringContent($"fields name,external_games,summary,cover;\r\nwhere name = \"{gameTitle}\";");
-                content.Headers.Add("Client-ID", "gkerplqbddwqjd5s253q471ztu2pth");
-                content.Headers.Add("Authorization", "Bearer " + tokenResp.access_token);
-                content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-
-                gameResponse = await client.PostAsync("https://api.igdb.com/v4/games", content);
+                tokenResponse.EnsureSuccessStatusCode();
+                string tokenRespString = await tokenResponse.Content.ReadAsStringAsync();
+                tokenResp = Newtonsoft.Json.JsonConvert.DeserializeObject<Token>(tokenRespString);
+                if (tokenResp == null)
+                    return null;
             }
 
-            if (gameResponse == null)
-                return null;
-
-            string gameRespString = await gameResponse.Content.ReadAsStringAsync();
-            GameBox.IGDBResponse.Game? gameResp = Newtonsoft.Json.JsonConvert.DeserializeObject<GameBox.IGDBResponse.Game>(gameRespString);
-
-            if (gameResp == null)
-                return null;
-
-            HttpResponseMessage? coverResponse = null;
-            using (HttpClient client = new HttpClient())
+            var gameRequest = new HttpRequestMessage
             {
-                HttpContent content = new StringContent($"fields url;\r\nwhere game = {gameResp.id}");
-                content.Headers.Add("Client-ID", "gkerplqbddwqjd5s253q471ztu2pth");
-                content.Headers.Add("Authorization", "Bearer " + tokenResp.access_token);
-                content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
+                Method = HttpMethod.Post,
+                RequestUri = new Uri("https://api.igdb.com/v4/games"),
+                Content = new StringContent($"fields name,external_games,summary,cover;\r\nwhere name = \"{gameTitle}\";")
+                {
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue ("text/plain")
+                    }
+                },
+                Headers =
+                {
+                    { "Client-ID", "gkerplqbddwqjd5s253q471ztu2pth" },
+                    { "Authorization", "Bearer " + tokenResp.access_token }
+                },
+            };
 
-                coverResponse = await client.PostAsync("https://api.igdb.com/v4/covers", content);
+            GameBox.IGDBResponse.Game? gameResp = null;
+            using (var gameResponse = await client.SendAsync(gameRequest))
+            {
+                gameResponse.EnsureSuccessStatusCode();
+                string gameRespString = await gameResponse.Content.ReadAsStringAsync();
+                gameResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<GameBox.IGDBResponse.Game>>(gameRespString)?.FirstOrDefault();
+                if (gameResp == null)
+                    return null;
             }
 
-            if(coverResponse == null)
-                return null;
+            var coverRequest = new HttpRequestMessage
+            {
+                Method = HttpMethod.Post,
+                RequestUri = new Uri("https://api.igdb.com/v4/covers"),
+                Content = new StringContent($"fields url;\r\nwhere game = {gameResp.id};")
+                {
+                    Headers =
+                    {
+                        ContentType = MediaTypeHeaderValue.Parse ("text/plain")
+                    }
+                },
+                Headers =
+                {
+                    { "Client-ID", "gkerplqbddwqjd5s253q471ztu2pth" },
+                    { "Authorization", "Bearer " + tokenResp.access_token }
+                }
+            };
 
-            string coverRespString = await coverResponse.Content.ReadAsStringAsync();
-            GameBox.IGDBResponse.Cover? coverResp = Newtonsoft.Json.JsonConvert.DeserializeObject<GameBox.IGDBResponse.Cover>(coverRespString);
-
-            if(coverResp == null)
-                return null;
+            GameBox.IGDBResponse.Cover? coverResp;
+            using (var coverResponse = await client.SendAsync(coverRequest))
+            {
+                string coverRespString = await coverResponse.Content.ReadAsStringAsync();
+                coverResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<GameBox.IGDBResponse.Cover>>(coverRespString)?.FirstOrDefault();
+                if (coverResp == null)
+                    return null;
+            }
 
             return new GameBox.Models.Game()
             {

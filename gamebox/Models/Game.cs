@@ -5,9 +5,21 @@
     /// </summary>
     public class Game
     {
-        public int[] External_ID;
-        public string Title;
-        public string Description;
-        public string ImagePath;
+        /// <summary>
+        /// List of external IDs referred to by other services
+        /// </summary>
+        public List<int>? External_ID { get; set; }
+        /// <summary>
+        /// Title of the game
+        /// </summary>
+        public string? Title {  get; set; }
+        /// <summary>
+        /// Summary of the game
+        /// </summary>
+        public string? Description { get; set; }
+        /// <summary>
+        /// Path to where the image of this game's cover is stored
+        /// </summary>
+        public string? ImagePath { get; set; }
     }
 }
