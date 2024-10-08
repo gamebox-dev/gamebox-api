@@ -1,7 +1,13 @@
 ﻿namespace GameBox.Models
 {
+    /// <summary>
+    /// Displays the status of the GameBox API server
+    /// </summary>
     public class HealthStatus
     {
-        public string Status { get; set; }
+        /// <summary>
+        /// The current status of the server
+        /// </summary>
+        public string? Status { get; set; }
     }
 }
