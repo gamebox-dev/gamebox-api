@@ -3,7 +3,7 @@
     /// <summary>
     /// Holds information for a game
     /// </summary>
-    public class Game
+    public class ExternalGame
     {
         /// <summary>
         /// List of external IDs referred to by other services
