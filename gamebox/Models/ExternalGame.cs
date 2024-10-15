@@ -6,9 +6,13 @@
     public class ExternalGame
     {
         /// <summary>
-        /// List of external IDs referred to by other services
+        /// ID of this game from the source
         /// </summary>
-        public List<int>? External_ID { get; set; }
+        public int? ExternalID { get; set; }
+        /// <summary>
+        /// List of Platforms this game is available on
+        /// </summary>
+        public List<ExternalPlatform>? Platforms { get; set; }
         /// <summary>
         /// Title of the game
         /// </summary>
@@ -21,5 +25,12 @@
         /// Path to where the image of this game's cover is stored
         /// </summary>
         public string? ImagePath { get; set; }
+    }
+
+    public class ExternalPlatform
+    {
+
+        public int? ID { get; set; }
+        public string? Name { get; set; }
     }
 }

@@ -9,14 +9,18 @@ namespace GameBox.Connectors.IGDB
         public async Task<ExternalGame>? SearchGames(string q)
         {
             var client = new HttpClient();
+
+            var clientID = Environment.GetEnvironmentVariable("IGDB_CLIENT_ID", EnvironmentVariableTarget.User);
+            var clientSecret = Environment.GetEnvironmentVariable("IGDB_CLIENT_SECRET", EnvironmentVariableTarget.User);
+
             var tokenRequest = new HttpRequestMessage
             {
                 Method = HttpMethod.Post,
                 RequestUri = new Uri("https://id.twitch.tv/oauth2/token"),
-                Content = new StringContent("{" + Environment.NewLine +
-                    "\"client_id\": \"gkerplqbddwqjd5s253q471ztu2pth\"," + Environment.NewLine +
-                    "\"client_secret\": \"lsbgel1hnihcwnwh3a1y6rw9zmqvup\"," + Environment.NewLine +
-                    "\"grant_type\": \"client_credentials\"" + Environment.NewLine + "}")
+                Content = new StringContent("{"+
+                    $"\"client_id\": \"{clientID}\"," +
+                    $"\"client_secret\": \"{clientSecret}\"," +
+                    "\"grant_type\": \"client_credentials\"" + "}")
                 {
                     Headers =
                     {
@@ -39,7 +43,7 @@ namespace GameBox.Connectors.IGDB
             {
                 Method = HttpMethod.Post,
                 RequestUri = new Uri("https://api.igdb.com/v4/games"),
-                Content = new StringContent($"fields name,external_games,summary,cover;\r\nwhere name = \"{q}\";")
+                Content = new StringContent($"fields name,platforms,summary,cover;where name = \"{q}\";")
                 {
                     Headers =
                     {
@@ -48,8 +52,8 @@ namespace GameBox.Connectors.IGDB
                 },
                 Headers =
                 {
-                    { "Client-ID", "gkerplqbddwqjd5s253q471ztu2pth" },
-                    { "Authorization", "Bearer " + tokenResp.access_token }
+                    { "Client-ID", $"{clientID}" },
+                    { "Authorization", $"Bearer {tokenResp.access_token}" }
                 },
             };
 
@@ -58,7 +62,7 @@ namespace GameBox.Connectors.IGDB
             {
                 gameResponse.EnsureSuccessStatusCode();
                 string gameRespString = await gameResponse.Content.ReadAsStringAsync();
-                gameResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<GameBox.IGDBResponse.Game>>(gameRespString)?.FirstOrDefault();
+                gameResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Game>>(gameRespString)?.FirstOrDefault();
                 if (gameResp == null)
                     return null;
             }
@@ -67,7 +71,7 @@ namespace GameBox.Connectors.IGDB
             {
                 Method = HttpMethod.Post,
                 RequestUri = new Uri("https://api.igdb.com/v4/covers"),
-                Content = new StringContent($"fields url;\r\nwhere game = {gameResp.id};")
+                Content = new StringContent($"fields url;where game = {gameResp.id};")
                 {
                     Headers =
                     {
@@ -76,8 +80,8 @@ namespace GameBox.Connectors.IGDB
                 },
                 Headers =
                 {
-                    { "Client-ID", "gkerplqbddwqjd5s253q471ztu2pth" },
-                    { "Authorization", "Bearer " + tokenResp.access_token }
+                    { "Client-ID", clientID },
+                    { "Authorization", $"Bearer {tokenResp.access_token}" }
                 }
             };
 
@@ -85,17 +89,54 @@ namespace GameBox.Connectors.IGDB
             using (var coverResponse = await client.SendAsync(coverRequest))
             {
                 string coverRespString = await coverResponse.Content.ReadAsStringAsync();
-                coverResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<GameBox.IGDBResponse.Cover>>(coverRespString)?.FirstOrDefault();
+                coverResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Cover>>(coverRespString)?.FirstOrDefault();
                 if (coverResp == null)
+                    return null;
+            }
+
+
+            string platformIDFilter = gameResp.platforms?.Count > 0 ? $"where id = ({string.Join(',', gameResp.platforms?.Select(x => x.ToString()))})" : string.Empty;
+            var platformRequest = new HttpRequestMessage
+            {
+                Method = HttpMethod.Post,
+                RequestUri = new Uri("https://api.igdb.com/v4/platforms"),
+                Content = new StringContent($"fields abbreviation;{platformIDFilter};")
+                {
+                    Headers =
+                    {
+                        ContentType = MediaTypeHeaderValue.Parse("text/plain")
+                    }
+                },
+                Headers =
+                {
+                    { "Client-ID", clientID },
+                    { "Authorization", $"Bearer {tokenResp.access_token}" }
+                }
+            };
+
+            List<Platform>? platformResp;
+            using (var platformResponse = await client.SendAsync(platformRequest))
+            {
+                string platformRespString = await platformResponse.Content.ReadAsStringAsync();
+                platformResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Platform>>(platformRespString);
+                if (platformResp == null)
                     return null;
             }
 
             return new ExternalGame()
             {
-                External_ID = gameResp.external_games,
+                ExternalID = gameResp.id,
                 Title = gameResp.name,
                 Description = gameResp.summary,
-                ImagePath = coverResp.url
+                ImagePath = coverResp.url,
+                Platforms = platformResp.Select(x =>
+                {
+                    return new ExternalPlatform()
+                    {
+                        ID = x.id,
+                        Name = x.abbreviation
+                    };
+                }).ToList()
             };
         }
     }
