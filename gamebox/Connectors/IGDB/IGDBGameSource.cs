@@ -8,7 +8,7 @@ namespace GameBox.Connectors.IGDB
 {
     public class IGDBGameSource : Connector, IGameSource
     {
-        public async Task<ExternalGame>? SearchGames(string q)
+        public async Task<ExternalGame?> SearchGames(string q)
         {
             var client = new HttpClient();
             var clientID = EnvironmentUtility.GetVariable("IGDB_CLIENT_ID");
