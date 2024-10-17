@@ -1,5 +1,6 @@
 ﻿using GameBox.Connectors.IGDB.IGDBResponse;
 using GameBox.Models;
+using GameBox.Utilities;
 using System.Collections;
 using System.Net.Http.Headers;
 
@@ -10,23 +11,8 @@ namespace GameBox.Connectors.IGDB
         public async Task<ExternalGame>? SearchGames(string q)
         {
             var client = new HttpClient();
-
-            if (Environment.GetEnvironmentVariables() is not IDictionary variables)
-                throw new Exception("Could not read environment variables");
-            
-            if(!variables.Contains("IGDB_CLIENT_ID"))
-                throw new Exception("Environment variable IGDB_CLIENT_ID is missing, please make sure it is properly set in the registry or parent process");
-            if (variables["IGDB_CLIENT_ID"] is not object clientIDObj)
-                throw new Exception("Could not read environment variable IGDB_CLIENT_ID");
-            if (clientIDObj is not string clientID)
-                throw new Exception("Environment variable IGDB_CLIENT_ID is invalid");
-
-            if (!variables.Contains("IGDB_CLIENT_SECRET"))
-                throw new Exception("Environment variable IGDB_CLIENT_SECRET is missing, please make sure it is properly set in the registry or parent process");
-            if (variables["IGDB_CLIENT_SECRET"] is not object clientSecretObj)
-                throw new Exception("Could not read environment variable IGDB_CLIENT_SECRET");
-            if (clientSecretObj is not string clientSecret)
-                throw new Exception("Environment variable IGDB_CLIENT_SECRET is invalid");
+            var clientID = EnvironmentUtility.GetVariable("IGDB_CLIENT_ID");
+            var clientSecret = EnvironmentUtility.GetVariable("IGDB_CLIENT_SECRET");
 
             var tokenRequest = new HttpRequestMessage
             {
