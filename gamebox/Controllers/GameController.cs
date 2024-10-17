@@ -24,7 +24,7 @@ namespace GameBox.Controllers
         /// <param name="q">The title of the game to search for</param>
         /// <returns></returns>
         [HttpGet(Name = "GetGame")]
-        public Task<ExternalGame>? Get(string q)
+        public Task<ExternalGame?> Get(string q)
         {
             return service.SearchGames(q);
         }

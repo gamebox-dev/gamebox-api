@@ -47,17 +47,14 @@ Run it directly via `dotnet run`:
 dotnet run
 ```
 
-### Environment Variables [currently Windows only]
+### Environment Variables
 
 #### IGDB
 
-- Go to the Twitch dev console (https://dev.twitch.tv/) and sign in/sign up.
-
-- Register a new application in the Applications section of the dashboard.
-
-- Copy the Client ID, request a new Client Secret and note them down.
-
-- Add IGDB_CLIENT_ID and IGDB_CLIENT_SECRET to the user environment variables on Windows and set them to the noted Client ID and Client Secret respectfully.
+* Go to the Twitch dev console (https://dev.twitch.tv/) and sign in/sign up.
+* Register a new application in the Applications section of the dashboard.
+* Copy the client ID and client secret to the respective `IGDB_CLIENT_ID` and
+`IGDB_CLIENT_SECRET` environment variables.
 
 ### API Documentation
 
