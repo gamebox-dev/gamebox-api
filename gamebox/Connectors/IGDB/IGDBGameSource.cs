@@ -110,7 +110,7 @@ namespace GameBox.Connectors.IGDB
             }
 
 
-            string platformIDFilter = gameResp.platforms?.Count > 0 ? $"where id = ({string.Join(',', gameResp.platforms?.Select(x => x.ToString()))})" : string.Empty;
+            string platformIDFilter = gameResp.platforms?.Count > 0 ? $"where id = ({string.Join(',', gameResp.platforms.Select(x => x.ToString()))})" : string.Empty;
             var platformRequest = new HttpRequestMessage
             {
                 Method = HttpMethod.Post,
