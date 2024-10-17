@@ -1,4 +1,4 @@
-﻿using GameBox.IGDBResponse;
+﻿using GameBox.Connectors.IGDB.IGDBResponse;
 using GameBox.Models;
 using System.Collections;
 using System.Net.Http.Headers;
