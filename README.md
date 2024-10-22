@@ -47,7 +47,7 @@ Run it directly via `dotnet run`:
 dotnet run
 ```
 
-### Environment Variables [currently Windows only]
+### Environment Variables
 
 #### IGDB
 
