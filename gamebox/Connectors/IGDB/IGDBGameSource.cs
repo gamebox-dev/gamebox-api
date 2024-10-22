@@ -158,22 +158,7 @@ namespace GameBox.Connectors.IGDB
                         Name = p.abbreviation
                     };
                 }).ToList();
-                //foreach (int platID in game.platforms)
-                //{
-                //    foreach(Platform p in platformResp)
-                //    {
-                //        if(p.id == platID)
-                //        {
-                //            ExternalPlatform ep = new ExternalPlatform()
-                //            {
-                //                ID = p.id,
-                //                Name = p.abbreviation
-                //            };
-                //            externalPlatforms.Add(ep);
-                //            break;
-                //        }
-                //    }
-                //}
+
                 ExternalGame externalGame = new ExternalGame()
                 {
                     ExternalID = extID,
