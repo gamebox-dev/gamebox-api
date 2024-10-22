@@ -12,6 +12,6 @@ namespace GameBox.Connectors
         /// </summary>
         /// <param name="q"></param>
         /// <returns></returns>
-        Task<ExternalGame>? SearchGames(string q);
+        Task<List<ExternalGame>> SearchGames(string q);
     }
 }

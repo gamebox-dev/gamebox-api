@@ -7,7 +7,7 @@ namespace GameBox.Connectors.IGDB
 {
     public class IGDBGameSource : IGameSource
     {
-        public async Task<ExternalGame>? SearchGames(string q)
+        public async Task<List<ExternalGame>> SearchGames(string q)
         {
             var client = new HttpClient();
 
@@ -58,7 +58,7 @@ namespace GameBox.Connectors.IGDB
             {
                 Method = HttpMethod.Post,
                 RequestUri = new Uri("https://api.igdb.com/v4/games"),
-                Content = new StringContent($"fields name,platforms,summary,cover;where name = \"{q}\";")
+                Content = new StringContent($"fields name,platforms,summary,cover;search \"{q}\";limit 10;")
                 {
                     Headers =
                     {
@@ -72,21 +72,24 @@ namespace GameBox.Connectors.IGDB
                 },
             };
 
-            Game? gameResp = null;
+            List<Game?> gameResp;
             using (var gameResponse = await client.SendAsync(gameRequest))
             {
                 gameResponse.EnsureSuccessStatusCode();
                 string gameRespString = await gameResponse.Content.ReadAsStringAsync();
-                gameResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Game>>(gameRespString)?.FirstOrDefault();
-                if (gameResp == null)
-                    return null;
+                gameResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Game?>>(gameRespString) ?? new List<Game?>();
+                if (gameResp.Count == 0)
+                    return new List<ExternalGame>();
             }
+
+            List<int> gameIDs = gameResp.Select(game => game?.id ?? -1).ToList();
+            string gameIDsStr = string.Join(",", gameIDs.Select(id => id.ToString()));
 
             var coverRequest = new HttpRequestMessage
             {
                 Method = HttpMethod.Post,
                 RequestUri = new Uri("https://api.igdb.com/v4/covers"),
-                Content = new StringContent($"fields url;where game = {gameResp.id};")
+                Content = new StringContent($"fields url,game;where game = ({gameIDsStr});limit {gameIDs.Count};")
                 {
                     Headers =
                     {
@@ -100,22 +103,23 @@ namespace GameBox.Connectors.IGDB
                 }
             };
 
-            Cover? coverResp;
+            List<Cover?> coverResp;
             using (var coverResponse = await client.SendAsync(coverRequest))
             {
                 string coverRespString = await coverResponse.Content.ReadAsStringAsync();
-                coverResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Cover>>(coverRespString)?.FirstOrDefault();
-                if (coverResp == null)
-                    return null;
+                coverResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Cover?>>(coverRespString) ?? new List<Cover?>();
+                if (coverResp.Count == 0)
+                    return new List<ExternalGame>();
             }
 
-
-            string platformIDFilter = gameResp.platforms?.Count > 0 ? $"where id = ({string.Join(',', gameResp.platforms.Select(x => x.ToString()))})" : string.Empty;
+            string totalIDs = string.Join(",", gameResp.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
+            int count = totalIDs.Split(",").Length;
+            string platformIDFilter = totalIDs.Length > 0 ? $"where id = ({totalIDs})" : string.Empty;
             var platformRequest = new HttpRequestMessage
             {
                 Method = HttpMethod.Post,
                 RequestUri = new Uri("https://api.igdb.com/v4/platforms"),
-                Content = new StringContent($"fields abbreviation;{platformIDFilter};")
+                Content = new StringContent($"fields abbreviation;{platformIDFilter};limit {count};")
                 {
                     Headers =
                     {
@@ -135,24 +139,53 @@ namespace GameBox.Connectors.IGDB
                 string platformRespString = await platformResponse.Content.ReadAsStringAsync();
                 platformResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Platform>>(platformRespString);
                 if (platformResp == null)
-                    return null;
+                    return new List<ExternalGame>();
             }
 
-            return new ExternalGame()
+            List<ExternalGame> externalGames = new List<ExternalGame>();
+            foreach(Game? game in gameResp)
             {
-                ExternalID = gameResp.id,
-                Title = gameResp.name,
-                Description = gameResp.summary,
-                ImagePath = coverResp.url,
-                Platforms = platformResp.Select(x =>
+                int extID = game.id;
+                string title = game.name;
+                string desc = game.summary;
+                string imgPath = coverResp.Where(cover => cover.game == game.id).FirstOrDefault()?.url ?? string.Empty;
+                List<ExternalPlatform> externalPlatforms = game.platforms.Select(plat =>
                 {
-                    return new ExternalPlatform()
+                    Platform p = platformResp.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
+                    return new ExternalPlatform
                     {
-                        ID = x.id,
-                        Name = x.abbreviation
+                        ID = p.id,
+                        Name = p.abbreviation
                     };
-                }).ToList()
-            };
+                }).ToList();
+                //foreach (int platID in game.platforms)
+                //{
+                //    foreach(Platform p in platformResp)
+                //    {
+                //        if(p.id == platID)
+                //        {
+                //            ExternalPlatform ep = new ExternalPlatform()
+                //            {
+                //                ID = p.id,
+                //                Name = p.abbreviation
+                //            };
+                //            externalPlatforms.Add(ep);
+                //            break;
+                //        }
+                //    }
+                //}
+                ExternalGame externalGame = new ExternalGame()
+                {
+                    ExternalID = extID,
+                    Title = title,
+                    Description = desc,
+                    ImagePath = imgPath,
+                    Platforms = externalPlatforms
+                };
+                externalGames.Add(externalGame);
+            }
+
+            return externalGames;
         }
     }
 }
