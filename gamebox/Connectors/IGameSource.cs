@@ -8,7 +8,7 @@ namespace GameBox.Connectors
     public interface IGameSource
     {
         /// <summary>
-        /// Searches for a game by exact name
+        /// Searches for and returns a set of games based on a name search
         /// </summary>
         /// <param name="q"></param>
         /// <returns></returns>
