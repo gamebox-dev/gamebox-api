@@ -1,4 +1,6 @@
-﻿namespace GameBox.Models
+﻿using System.Reflection.Metadata.Ecma335;
+
+namespace GameBox.Models
 {
     /// <summary>
     /// Holds information for a game
@@ -34,6 +36,8 @@
             Description = string.Empty;
             ImagePath = null;
         }
+
+        public static ExternalGame Empty => new ExternalGame();
     }
 
     public class ExternalPlatform
@@ -41,5 +45,11 @@
 
         public int ID { get; set; }
         public string Name { get; set; }
+
+        public ExternalPlatform()
+        {
+            ID = 0;
+            Name = string.Empty;
+        }
     }
 }
