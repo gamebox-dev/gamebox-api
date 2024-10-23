@@ -1,157 +1,79 @@
 ﻿using GameBox.Connectors.IGDB.IGDBResponse;
 using GameBox.Models;
+using GameBox.Utilities;
 using System.Collections;
 using System.Net.Http.Headers;
 
 namespace GameBox.Connectors.IGDB
 {
-    public class IGDBGameSource : IGameSource
+    public class IGDBGameSource : Connector, IGameSource
     {
         public async Task<List<ExternalGame>> SearchGames(string q)
         {
             var client = new HttpClient();
+            var clientID = EnvironmentUtility.GetVariable("IGDB_CLIENT_ID");
+            var clientSecret = EnvironmentUtility.GetVariable("IGDB_CLIENT_SECRET");
 
-            if (Environment.GetEnvironmentVariables() is not IDictionary variables)
-                throw new Exception("Could not read environment variables");
-            
-            if(!variables.Contains("IGDB_CLIENT_ID"))
-                throw new Exception("Environment variable IGDB_CLIENT_ID is missing, please make sure it is properly set in the registry or parent process");
-            if (variables["IGDB_CLIENT_ID"] is not object clientIDObj)
-                throw new Exception("Could not read environment variable IGDB_CLIENT_ID");
-            if (clientIDObj is not string clientID)
-                throw new Exception("Environment variable IGDB_CLIENT_ID is invalid");
-
-            if (!variables.Contains("IGDB_CLIENT_SECRET"))
-                throw new Exception("Environment variable IGDB_CLIENT_SECRET is missing, please make sure it is properly set in the registry or parent process");
-            if (variables["IGDB_CLIENT_SECRET"] is not object clientSecretObj)
-                throw new Exception("Could not read environment variable IGDB_CLIENT_SECRET");
-            if (clientSecretObj is not string clientSecret)
-                throw new Exception("Environment variable IGDB_CLIENT_SECRET is invalid");
-
-            var tokenRequest = new HttpRequestMessage
-            {
-                Method = HttpMethod.Post,
-                RequestUri = new Uri("https://id.twitch.tv/oauth2/token"),
-                Content = new StringContent("{"+
-                    $"\"client_id\": \"{clientID}\"," +
-                    $"\"client_secret\": \"{clientSecret}\"," +
-                    "\"grant_type\": \"client_credentials\"" + "}")
+            Token? token = await PostRequest<Token>(
+                "https://id.twitch.tv/oauth2/token",
+                new
                 {
-                    Headers =
-                    {
-                        ContentType = new MediaTypeHeaderValue("application/json")
-                    }
+                    client_id = clientID,
+                    client_secret = clientSecret,
+                    grant_type = "client_credentials",
                 }
-            };
+            );
+            if (token == null)
+                return null;
 
-            Token? tokenResp = null;
-            using (var tokenResponse = await client.SendAsync(tokenRequest))
-            {
-                tokenResponse.EnsureSuccessStatusCode();
-                string tokenRespString = await tokenResponse.Content.ReadAsStringAsync();
-                tokenResp = Newtonsoft.Json.JsonConvert.DeserializeObject<Token>(tokenRespString);
-                if (tokenResp == null)
-                    return null;
-            }
-
-            var gameRequest = new HttpRequestMessage
-            {
-                Method = HttpMethod.Post,
-                RequestUri = new Uri("https://api.igdb.com/v4/games"),
-                Content = new StringContent($"fields name,platforms,summary,cover;search \"{q}\";limit 10;")
-                {
-                    Headers =
-                    {
-                        ContentType = new MediaTypeHeaderValue ("text/plain")
-                    }
-                },
-                Headers =
+            List<Game>? games = await PostRequest<List<Game>>(
+                "https://api.igdb.com/v4/games",
+                $"fields name,platforms,summary,cover;search \"{q}\";limit 10;",
+                new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
-                    { "Authorization", $"Bearer {tokenResp.access_token}" }
-                },
-            };
-
-            List<Game?> gameResp;
-            using (var gameResponse = await client.SendAsync(gameRequest))
-            {
-                gameResponse.EnsureSuccessStatusCode();
-                string gameRespString = await gameResponse.Content.ReadAsStringAsync();
-                gameResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Game?>>(gameRespString) ?? new List<Game?>();
-                if (gameResp.Count == 0)
-                    return new List<ExternalGame>();
-            }
-
-            List<int> gameIDs = gameResp.Select(game => game?.id ?? -1).ToList();
-            string gameIDsStr = string.Join(",", gameIDs.Select(id => id.ToString()));
-
-            var coverRequest = new HttpRequestMessage
-            {
-                Method = HttpMethod.Post,
-                RequestUri = new Uri("https://api.igdb.com/v4/covers"),
-                Content = new StringContent($"fields url,game;where game = ({gameIDsStr});limit {gameIDs.Count};")
-                {
-                    Headers =
-                    {
-                        ContentType = MediaTypeHeaderValue.Parse ("text/plain")
-                    }
-                },
-                Headers =
-                {
-                    { "Client-ID", clientID },
-                    { "Authorization", $"Bearer {tokenResp.access_token}" }
+                    { "Authorization", $"Bearer {token.access_token}" }
                 }
-            };
+            );
+            if (games == null || games.Count == 0)
+                return null;
 
-            List<Cover?> coverResp;
-            using (var coverResponse = await client.SendAsync(coverRequest))
-            {
-                string coverRespString = await coverResponse.Content.ReadAsStringAsync();
-                coverResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Cover?>>(coverRespString) ?? new List<Cover?>();
-                if (coverResp.Count == 0)
-                    return new List<ExternalGame>();
-            }
+            string gameIDs = string.Join(",", games?.Select(game => game.id) ?? new List<int>());
+            List<Cover>? covers = await PostRequest<List<Cover>>(
+                "https://api.igdb.com/v4/covers",
+                $"fields url,game;where game = ({gameIDs});",
+                new Dictionary<string, string>
+                {
+                    { "Client-ID", $"{clientID}" },
+                    { "Authorization", $"Bearer {token.access_token}" }
+                }
+            );
 
-            string totalIDs = string.Join(",", gameResp.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
+            string totalIDs = string.Join(",", games.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
             int count = totalIDs.Split(",").Length;
-            string platformIDFilter = totalIDs.Length > 0 ? $"where id = ({totalIDs})" : string.Empty;
-            var platformRequest = new HttpRequestMessage
-            {
-                Method = HttpMethod.Post,
-                RequestUri = new Uri("https://api.igdb.com/v4/platforms"),
-                Content = new StringContent($"fields abbreviation;{platformIDFilter};limit {count};")
+            string platformIDFilter = totalIDs.Length > 0 ? $"where id = ({totalIDs});" : string.Empty;
+            List<Platform>? platforms = await PostRequest<List<Platform>>(
+                "https://api.igdb.com/v4/platforms",
+                $"fields abbreviation;{platformIDFilter}",
+                new Dictionary<string, string>
                 {
-                    Headers =
-                    {
-                        ContentType = MediaTypeHeaderValue.Parse("text/plain")
-                    }
-                },
-                Headers =
-                {
-                    { "Client-ID", clientID },
-                    { "Authorization", $"Bearer {tokenResp.access_token}" }
+                    { "Client-ID", $"{clientID}" },
+                    { "Authorization", $"Bearer {token.access_token}" }
                 }
-            };
-
-            List<Platform>? platformResp;
-            using (var platformResponse = await client.SendAsync(platformRequest))
-            {
-                string platformRespString = await platformResponse.Content.ReadAsStringAsync();
-                platformResp = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Platform>>(platformRespString);
-                if (platformResp == null)
-                    return new List<ExternalGame>();
-            }
+            );
+            if (platforms == null)
+                return null;
 
             List<ExternalGame> externalGames = new List<ExternalGame>();
-            foreach(Game? game in gameResp)
+            foreach(Game? game in games)
             {
                 int extID = game.id;
                 string title = game.name;
                 string desc = game.summary;
-                string imgPath = coverResp.Where(cover => cover.game == game.id).FirstOrDefault()?.url ?? string.Empty;
+                string imgPath = covers.Where(cover => cover.game == extID).FirstOrDefault()?.url ?? string.Empty;
                 List<ExternalPlatform> externalPlatforms = game.platforms.Select(plat =>
                 {
-                    Platform p = platformResp.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
+                    Platform p = platforms.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
                     return new ExternalPlatform
                     {
                         ID = p.id,
