@@ -35,7 +35,7 @@ namespace GameBox.Connectors.IGDB
                     { "Authorization", $"Bearer {token.access_token}" }
                 }
             );
-            if (games == null || games.Count == 0)
+            if (games?.Count == 0)
                 return null;
 
             string gameIDs = string.Join(",", games?.Select(game => game.id) ?? new List<int>());
@@ -48,6 +48,8 @@ namespace GameBox.Connectors.IGDB
                     { "Authorization", $"Bearer {token.access_token}" }
                 }
             );
+            if (covers?.Count == 0)
+                return null;
 
             string totalIDs = string.Join(",", games.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
             int count = totalIDs.Split(",").Length;
@@ -61,7 +63,7 @@ namespace GameBox.Connectors.IGDB
                     { "Authorization", $"Bearer {token.access_token}" }
                 }
             );
-            if (platforms == null)
+            if (platforms?.Count == 0)
                 return null;
 
             List<ExternalGame> externalGames = new List<ExternalGame>();
@@ -70,10 +72,10 @@ namespace GameBox.Connectors.IGDB
                 int extID = game.id;
                 string title = game.name;
                 string desc = game.summary;
-                string imgPath = covers.Where(cover => cover.game == extID).FirstOrDefault()?.url ?? string.Empty;
+                string imgPath = covers?.Where(cover => cover.game == extID).FirstOrDefault()?.url ?? string.Empty;
                 List<ExternalPlatform> externalPlatforms = game.platforms.Select(plat =>
                 {
-                    Platform p = platforms.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
+                    Platform p = platforms?.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
                     return new ExternalPlatform
                     {
                         ID = p.id,
