@@ -1,6 +1,4 @@
-﻿using System.Reflection.Metadata.Ecma335;
-
-namespace GameBox.Models
+﻿namespace GameBox.Models
 {
     /// <summary>
     /// Holds information for a game
