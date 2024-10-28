@@ -36,7 +36,7 @@ namespace GameBox.Connectors.IGDB
                 }
             );
             if (games?.Count == 0)
-                return null;
+                return new List<ExternalGame>();
 
             string gameIDs = string.Join(",", games?.Select(game => game.id) ?? new List<int>());
             List<Cover>? covers = await PostRequest<List<Cover>>(
@@ -49,7 +49,7 @@ namespace GameBox.Connectors.IGDB
                 }
             );
             if (covers?.Count == 0)
-                return null;
+                return new List<ExternalGame>();
 
             string totalIDs = string.Join(",", games.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
             int count = totalIDs.Split(",").Length;
@@ -64,7 +64,7 @@ namespace GameBox.Connectors.IGDB
                 }
             );
             if (platforms?.Count == 0)
-                return null;
+                return new List<ExternalGame>();
 
             List<ExternalGame> externalGames = new List<ExternalGame>();
             foreach(Game? game in games)
