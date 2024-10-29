@@ -8,7 +8,7 @@ namespace GameBox.Connectors.IGDB
 {
     public class IGDBGameSource : Connector, IGameSource
     {
-        public async Task<ExternalGame?> SearchGames(string q)
+        public async Task<List<ExternalGame>> SearchGames(string q)
         {
             var client = new HttpClient();
             var clientID = EnvironmentUtility.GetVariable("IGDB_CLIENT_ID");
@@ -28,56 +28,73 @@ namespace GameBox.Connectors.IGDB
 
             List<Game>? games = await PostRequest<List<Game>>(
                 "https://api.igdb.com/v4/games",
-                $"fields name,platforms,summary,cover;where name = \"{q}\";",
+                $"fields name,platforms,summary,cover;search \"{q}\";limit 10;",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
                     { "Authorization", $"Bearer {token.access_token}" }
                 }
             );
-            Game? game = games?.FirstOrDefault();
-            if (game == null)
-                return null;
+            if (games?.Count == 0)
+                return new List<ExternalGame>();
 
+            string gameIDs = string.Join(",", games?.Select(game => game.id) ?? new List<int>());
             List<Cover>? covers = await PostRequest<List<Cover>>(
                 "https://api.igdb.com/v4/covers",
-                $"fields url;where game = {game.id};",
+                $"fields url,game;where game = ({gameIDs});",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
                     { "Authorization", $"Bearer {token.access_token}" }
                 }
             );
-            Cover? cover = covers?.FirstOrDefault();
+            if (covers?.Count == 0)
+                return new List<ExternalGame>();
 
-            string platformIDFilter = game.platforms?.Count > 0 ? $"where id = ({string.Join(',', game.platforms.Select(x => x.ToString()))})" : string.Empty;
+            string totalIDs = string.Join(",", games.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
+            int count = totalIDs.Split(",").Length;
+            string platformIDFilter = totalIDs.Length > 0 ? $"where id = ({totalIDs});" : string.Empty;
             List<Platform>? platforms = await PostRequest<List<Platform>>(
                 "https://api.igdb.com/v4/platforms",
-                $"fields abbreviation;{platformIDFilter};",
+                $"fields abbreviation;{platformIDFilter}",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
                     { "Authorization", $"Bearer {token.access_token}" }
                 }
             );
-            if (platforms == null)
-                return null;
+            if (platforms?.Count == 0)
+                return new List<ExternalGame>();
 
-            return new ExternalGame()
+            List<ExternalGame> externalGames = new List<ExternalGame>();
+            foreach(Game? game in games)
             {
-                ExternalID = game.id,
-                Title = game.name,
-                Description = game.summary,
-                ImagePath = cover?.url,
-                Platforms = platforms.Select(x =>
+                int extID = game.id;
+                string title = game.name;
+                string desc = game.summary;
+                string imgPath = covers?.Where(cover => cover.game == extID).FirstOrDefault()?.url ?? string.Empty;
+                List<ExternalPlatform> externalPlatforms = game.platforms.Select(plat =>
                 {
-                    return new ExternalPlatform()
+                    Platform p = platforms?.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
+                    return new ExternalPlatform
                     {
-                        ID = x.id,
-                        Name = x.abbreviation
+                        ID = p.id,
+                        Name = p.abbreviation
                     };
-                }).ToList()
-            };
+                }).ToList();
+
+                ExternalGame externalGame = new ExternalGame()
+                {
+                    ExternalID = extID,
+                    Title = title,
+                    Description = desc,
+                    ImagePath = imgPath,
+                    Platforms = externalPlatforms
+                };
+                externalGames.Add(externalGame);
+            }
+
+            return externalGames;
         }
     }
 }
