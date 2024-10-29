@@ -4,6 +4,7 @@
     {
         public int id { get; set; }
         public string url { get; set; }
+        public int game {  get; set; }
 
         public Cover()
         {

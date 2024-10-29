@@ -34,6 +34,8 @@
             Description = string.Empty;
             ImagePath = null;
         }
+
+        public static ExternalGame Empty => new ExternalGame();
     }
 
     public class ExternalPlatform
@@ -41,5 +43,11 @@
 
         public int ID { get; set; }
         public string Name { get; set; }
+
+        public ExternalPlatform()
+        {
+            ID = 0;
+            Name = string.Empty;
+        }
     }
 }
