@@ -1,6 +1,5 @@
 ﻿using GameBox.Connectors.IGDB.IGDBResponse;
 using GameBox.Models;
-using GameBox.Utilities;
 using System.Collections;
 using System.Net.Http.Headers;
 
@@ -8,11 +7,33 @@ namespace GameBox.Connectors.IGDB
 {
     public class IGDBGameSource : Connector, IGameSource
     {
+        /// <summary>
+        /// File path to the file containing the authentication token.
+        /// </summary>
+        private const string AUTH_TOKEN_FILE = "IGDB_AUTH_TOKEN";
+
+        /// <summary>
+        /// IGDB client ID.
+        /// </summary>
+        private string clientID;
+
+        /// <summary>
+        /// IGDB client secret.
+        /// </summary>
+        private string clientSecret;
+
+        /// <summary>
+        /// Constructs a new IGDB game source with the given client ID and secret.
+        /// </summary>
+        public IGDBGameSource(string clientID, string clientSecret)
+        {
+            this.clientID = clientID;
+            this.clientSecret = clientSecret;
+        }
+
         public async Task<List<ExternalGame>> SearchGames(string q)
         {
             var client = new HttpClient();
-            var clientID = EnvironmentUtility.GetVariable("IGDB_CLIENT_ID");
-            var clientSecret = EnvironmentUtility.GetVariable("IGDB_CLIENT_SECRET");
 
             Token? token = await PostRequest<Token>(
                 "https://id.twitch.tv/oauth2/token",
