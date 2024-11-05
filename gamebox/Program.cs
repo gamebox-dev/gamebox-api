@@ -1,12 +1,15 @@
 using GameBox.Connectors;
 using GameBox.Connectors.IGDB;
 using GameBox.Controllers;
+using GameBox.Utilities;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddSingleton<IGameSource, IGDBGameSource>();
+var clientID = EnvironmentUtility.GetVariable("IGDB_CLIENT_ID");
+var clientSecret = EnvironmentUtility.GetVariable("IGDB_CLIENT_SECRET");
+builder.Services.AddSingleton<IGameSource>(s => new IGDBGameSource(clientID, clientSecret));
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

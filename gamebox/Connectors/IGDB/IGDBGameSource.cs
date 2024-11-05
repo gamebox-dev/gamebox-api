@@ -1,6 +1,5 @@
 ﻿using GameBox.Connectors.IGDB.IGDBResponse;
 using GameBox.Models;
-using GameBox.Utilities;
 using System.Collections;
 using System.Net.Http.Headers;
 
@@ -8,11 +7,58 @@ namespace GameBox.Connectors.IGDB
 {
     public class IGDBGameSource : Connector, IGameSource
     {
-        public async Task<List<ExternalGame>> SearchGames(string q)
+        /// <summary>
+        /// File path to the file containing the authentication token.
+        /// </summary>
+        private const string AUTH_TOKEN_FILE = "IGDB_AUTH_TOKEN";
+
+        /// <summary>
+        /// IGDB authentication token.
+        /// </summary>
+        private string authToken;
+
+        /// <summary>
+        /// IGDB client ID.
+        /// </summary>
+        private string clientID;
+
+        /// <summary>
+        /// IGDB client secret.
+        /// </summary>
+        private string clientSecret;
+
+        /// <summary>
+        /// Constructs a new IGDB game source with the given client ID and secret.
+        /// </summary>
+        public IGDBGameSource(string clientID, string clientSecret)
         {
-            var client = new HttpClient();
-            var clientID = EnvironmentUtility.GetVariable("IGDB_CLIENT_ID");
-            var clientSecret = EnvironmentUtility.GetVariable("IGDB_CLIENT_SECRET");
+            this.clientID = clientID;
+            this.clientSecret = clientSecret;
+
+            var authFilePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "GameBox",
+                AUTH_TOKEN_FILE);
+            Console.WriteLine($"Reading auth token from file: {authFilePath}");
+            try
+            {
+                using StreamReader reader = new(authFilePath);
+                authToken = reader.ReadToEnd();
+                Console.WriteLine($"Got auth token: {authToken}");
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine($"Unable to read auth token: {e.Message}");
+                authToken = null;
+            }
+        }
+
+        /// <summary>
+        /// Retrieves the auth token from the Twitch API, storing the results in a file.
+        /// </summary>
+        private async Task RetrieveToken()
+        {
+            Console.WriteLine("Retrieving auth token from IGDB API...");
 
             Token? token = await PostRequest<Token>(
                 "https://id.twitch.tv/oauth2/token",
@@ -23,8 +69,29 @@ namespace GameBox.Connectors.IGDB
                     grant_type = "client_credentials",
                 }
             );
-            if (token == null)
-                return null;
+            if (token == null) {
+                authToken = null;
+                return;
+            }
+
+            var appData = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "GameBox");
+            Directory.CreateDirectory(appData);
+            var authFilePath = Path.Combine(appData, AUTH_TOKEN_FILE);
+            using (StreamWriter outputFile = new StreamWriter(authFilePath))
+            {
+                await outputFile.WriteAsync(authToken);
+            }
+
+            authToken = token.access_token;
+            Console.WriteLine($"Got auth token: {authToken}");
+        }
+
+        public async Task<List<ExternalGame>> SearchGames(string q)
+        {
+            if (authToken == null)
+                await RetrieveToken();
 
             List<Game>? games = await PostRequest<List<Game>>(
                 "https://api.igdb.com/v4/games",
@@ -32,7 +99,7 @@ namespace GameBox.Connectors.IGDB
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
-                    { "Authorization", $"Bearer {token.access_token}" }
+                    { "Authorization", $"Bearer {authToken}" }
                 }
             );
             if (games?.Count == 0)
@@ -45,7 +112,7 @@ namespace GameBox.Connectors.IGDB
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
-                    { "Authorization", $"Bearer {token.access_token}" }
+                    { "Authorization", $"Bearer {authToken}" }
                 }
             );
             if (covers?.Count == 0)
@@ -60,7 +127,7 @@ namespace GameBox.Connectors.IGDB
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
-                    { "Authorization", $"Bearer {token.access_token}" }
+                    { "Authorization", $"Bearer {authToken}" }
                 }
             );
             if (platforms?.Count == 0)
