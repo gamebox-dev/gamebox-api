@@ -57,6 +57,7 @@ namespace GameBox.Models.DB
     {
         [Key]
         public int UserID { get; set; }
+        public string Email { get; set; }
         public List<CollectionEntry> CollectionEntries { get; set; }
     }
 
@@ -71,6 +72,5 @@ namespace GameBox.Models.DB
         public int PlatformID { get; set; }
         public Platform Platform { get; set; }
         public DateTime Added { get; set; }
-
     }
 }
