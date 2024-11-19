@@ -95,7 +95,7 @@ namespace GameBox.Connectors.IGDB
 
             List<Game>? games = await PostRequest<List<Game>>(
                 "https://api.igdb.com/v4/games",
-                $"fields name,platforms,summary,cover;search \"{q}\";limit 10;",
+                $"fields name,platforms,summary,cover;search \"{q}\";limit 50;",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
