@@ -107,6 +107,8 @@ namespace GameBox.Connectors.IGDB
             if (authToken == null)
                 await RetrieveToken();
 
+            // Search for the games
+
             List<Game>? games = await PostRequest<List<Game>>(
                 "https://api.igdb.com/v4/games",
                 $"fields name,platforms,summary,cover;search \"{q}\";limit 50;",
@@ -118,6 +120,8 @@ namespace GameBox.Connectors.IGDB
             );
             if (games?.Count == 0)
                 return new List<ExternalGame>();
+
+            // Get game covers
 
             string gameIDs = string.Join(",", games?.Select(game => game.id) ?? new List<int>());
             List<Cover>? covers = await PostRequest<List<Cover>>(
@@ -131,6 +135,8 @@ namespace GameBox.Connectors.IGDB
             );
             if (covers?.Count == 0)
                 return new List<ExternalGame>();
+
+            // Get platform names
 
             List<int> platformIDs = new List<int>();
             foreach (Game? game in games)
@@ -149,6 +155,8 @@ namespace GameBox.Connectors.IGDB
             );
             if (platforms?.Count == 0)
                 return new List<ExternalGame>();
+
+            // Fill response models with metadata
 
             List<ExternalGame> externalGames = new List<ExternalGame>();
             foreach(Game? game in games)
