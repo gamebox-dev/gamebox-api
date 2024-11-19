@@ -118,12 +118,14 @@ namespace GameBox.Connectors.IGDB
             if (covers?.Count == 0)
                 return new List<ExternalGame>();
 
-            string totalIDs = string.Join(",", games.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
-            int count = totalIDs.Split(",").Length;
-            string platformIDFilter = totalIDs.Length > 0 ? $"where id = ({totalIDs});" : string.Empty;
+            List<int> platformIDs = new List<int>();
+            foreach (Game? game in games)
+                platformIDs.AddRange(game.platforms);
+
+            string uniquePlatformIDs = string.Join(",", platformIDs.Distinct().Select(p => p.ToString()));
             List<Platform>? platforms = await PostRequest<List<Platform>>(
                 "https://api.igdb.com/v4/platforms",
-                $"fields abbreviation;{platformIDFilter}",
+                $"fields abbreviation;where id = ({uniquePlatformIDs});",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
