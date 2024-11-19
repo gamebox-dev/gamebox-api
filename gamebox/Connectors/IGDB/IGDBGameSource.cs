@@ -122,7 +122,7 @@ namespace GameBox.Connectors.IGDB
             string gameIDs = string.Join(",", games?.Select(game => game.id) ?? new List<int>());
             List<Cover>? covers = await PostRequest<List<Cover>>(
                 "https://api.igdb.com/v4/covers",
-                $"fields url,game;where game = ({gameIDs});",
+                $"fields url,game;where game = ({gameIDs});limit 50;",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
@@ -136,10 +136,11 @@ namespace GameBox.Connectors.IGDB
             foreach (Game? game in games)
                 platformIDs.AddRange(game.platforms);
 
-            string uniquePlatformIDs = string.Join(",", platformIDs.Distinct().Select(p => p.ToString()));
+            platformIDs = platformIDs.Distinct().ToList();
+            string platformIDsString = string.Join(",", platformIDs.Select(p => p.ToString()));
             List<Platform>? platforms = await PostRequest<List<Platform>>(
                 "https://api.igdb.com/v4/platforms",
-                $"fields abbreviation;where id = ({uniquePlatformIDs});",
+                $"fields abbreviation;where id = ({platformIDsString});limit {platformIDs.Count};",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
