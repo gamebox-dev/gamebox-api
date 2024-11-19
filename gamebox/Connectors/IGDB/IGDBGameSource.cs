@@ -54,6 +54,20 @@ namespace GameBox.Connectors.IGDB
         }
 
         /// <summary>
+        /// Sanitize/fix the URL of a cover coming from IGDB.
+        /// </summary>
+        public static string ConformCoverURL(string coverURL)
+        {
+            if (string.IsNullOrWhiteSpace(coverURL))
+                return coverURL;
+
+            if (coverURL.StartsWith('/'))
+                coverURL = "https:" + coverURL;
+
+            return coverURL.Replace("/t_thumb/", "/t_cover_big/");
+        }
+
+        /// <summary>
         /// Retrieves the auth token from the Twitch API, storing the results in a file.
         /// </summary>
         private async Task RetrieveToken()
@@ -141,7 +155,10 @@ namespace GameBox.Connectors.IGDB
                 int extID = game.id;
                 string title = game.name;
                 string desc = game.summary;
-                string imgPath = covers?.Where(cover => cover.game == extID).FirstOrDefault()?.url ?? string.Empty;
+                string imgPath = ConformCoverURL(
+                    covers?.Where(cover => cover.game == extID).FirstOrDefault()?.url
+                    ?? string.Empty
+                );
                 List<ExternalPlatform> externalPlatforms = game.platforms.Select(plat =>
                 {
                     Platform p = platforms?.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
