@@ -56,6 +56,10 @@ dotnet run
 * Copy the client ID and client secret to the respective `IGDB_CLIENT_ID` and
 `IGDB_CLIENT_SECRET` environment variables.
 
+#### Database
+
+Place your MSSQLS connection string into an environment variable `GAMEBOX_SQL_CONNECTION_STRING`.
+
 ### API Documentation
 
 Running it in development mode results in the Swagger/OpenAPI documentation
