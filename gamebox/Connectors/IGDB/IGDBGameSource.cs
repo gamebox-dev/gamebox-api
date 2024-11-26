@@ -54,6 +54,20 @@ namespace GameBox.Connectors.IGDB
         }
 
         /// <summary>
+        /// Sanitize/fix the URL of a cover coming from IGDB.
+        /// </summary>
+        public static string ConformCoverURL(string coverURL)
+        {
+            if (string.IsNullOrWhiteSpace(coverURL))
+                return coverURL;
+
+            if (coverURL.StartsWith('/'))
+                coverURL = "https:" + coverURL;
+
+            return coverURL.Replace("/t_thumb/", "/t_cover_big/");
+        }
+
+        /// <summary>
         /// Retrieves the auth token from the Twitch API, storing the results in a file.
         /// </summary>
         private async Task RetrieveToken()
@@ -93,9 +107,11 @@ namespace GameBox.Connectors.IGDB
             if (string.IsNullOrWhiteSpace(authToken))
                 await RetrieveToken();
 
+            // Search for the games
+
             List<Game>? games = await PostRequest<List<Game>>(
                 "https://api.igdb.com/v4/games",
-                $"fields name,platforms,summary,cover;search \"{q}\";limit 10;",
+                $"fields name,platforms,summary,cover;search \"{q}\";limit 50;",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
@@ -105,10 +121,12 @@ namespace GameBox.Connectors.IGDB
             if (games?.Count == 0)
                 return new List<ExternalGame>();
 
+            // Get game covers
+
             string gameIDs = string.Join(",", games?.Select(game => game.id) ?? new List<int>());
             List<Cover>? covers = await PostRequest<List<Cover>>(
                 "https://api.igdb.com/v4/covers",
-                $"fields url,game;where game = ({gameIDs});",
+                $"fields url,game;where game = ({gameIDs});limit 50;",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
@@ -118,12 +136,17 @@ namespace GameBox.Connectors.IGDB
             if (covers?.Count == 0)
                 return new List<ExternalGame>();
 
-            string totalIDs = string.Join(",", games.Select(game => string.Join(",", game.platforms.Select(platform => platform.ToString()))));
-            int count = totalIDs.Split(",").Length;
-            string platformIDFilter = totalIDs.Length > 0 ? $"where id = ({totalIDs});" : string.Empty;
+            // Get platform names
+
+            List<int> platformIDs = new List<int>();
+            foreach (Game? game in games)
+                platformIDs.AddRange(game.platforms);
+
+            platformIDs = platformIDs.Distinct().ToList();
+            string platformIDsString = string.Join(",", platformIDs.Select(p => p.ToString()));
             List<Platform>? platforms = await PostRequest<List<Platform>>(
                 "https://api.igdb.com/v4/platforms",
-                $"fields abbreviation;{platformIDFilter}",
+                $"fields abbreviation;where id = ({platformIDsString});limit {platformIDs.Count};",
                 new Dictionary<string, string>
                 {
                     { "Client-ID", $"{clientID}" },
@@ -133,13 +156,18 @@ namespace GameBox.Connectors.IGDB
             if (platforms?.Count == 0)
                 return new List<ExternalGame>();
 
+            // Fill response models with metadata
+
             List<ExternalGame> externalGames = new List<ExternalGame>();
             foreach(Game? game in games)
             {
                 int extID = game.id;
                 string title = game.name;
                 string desc = game.summary;
-                string imgPath = covers?.Where(cover => cover.game == extID).FirstOrDefault()?.url ?? string.Empty;
+                string imgPath = ConformCoverURL(
+                    covers?.Where(cover => cover.game == extID).FirstOrDefault()?.url
+                    ?? string.Empty
+                );
                 List<ExternalPlatform> externalPlatforms = game.platforms.Select(plat =>
                 {
                     Platform p = platforms?.Where(platform => platform.id == plat).FirstOrDefault() ?? new Platform();
