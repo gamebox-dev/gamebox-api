@@ -90,7 +90,7 @@ namespace GameBox.Connectors.IGDB
 
         public async Task<List<ExternalGame>> SearchGames(string q)
         {
-            if (authToken == null)
+            if (string.IsNullOrWhiteSpace(authToken))
                 await RetrieveToken();
 
             List<Game>? games = await PostRequest<List<Game>>(
